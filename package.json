@@ -1,0 +1,24 @@
+{
+  "name": "cordova-plugin-tango",
+  "version": "0.0.1-dev",
+  "description": "PhoneGap Project Tango Plugin",
+  "cordova": {
+    "id": "cordova-plugin-tango",
+    "platforms": [
+      "android"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+    "cordova",
+    "device",
+    "motion",
+    "ecosystem:cordova",
+    "cordova-android"
+  ],
+  "author": "Apache Software Foundation",
+  "license": "Apache 2.0"
+}
