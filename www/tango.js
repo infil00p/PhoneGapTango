@@ -34,7 +34,7 @@ function start() {
     var tempListeners = listeners.slice(0);
     pose = a;
     for(var i = 0, l = tempListeners.length; i < l; i++) {
-      tempListenres[i].win(pose);
+      tempListeners[i].win(pose);
     }
   } , function(e) {
       var tempListeners = listeners.slice(0);

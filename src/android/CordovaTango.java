@@ -38,9 +38,9 @@ public class CordovaTango extends CordovaPlugin {
 
     private CallbackContext callbackContext;
 
-
-    Activity mActivity;
     CordovaInterface mCordova;
+    Runnable tangoRunnable;
+    TangoPoseData lastKnownPose;
 
     /**
      * Called after plugin construction and fields have been initialized.
@@ -51,7 +51,14 @@ public class CordovaTango extends CordovaPlugin {
         mCordova = cordova;
         Context ctx = mCordova.getActivity().getApplicationContext();
 
-        mTango = new Tango(ctx);
+        tangoRunnable = new Runnable() {
+            @Override
+            public void run() {
+
+            }
+        };
+
+        mTango = new Tango(ctx, tangoRunnable);
 
         mConfig = mTango.getConfig(TangoConfig.CONFIG_TYPE_CURRENT);
         mConfig.putBoolean(TangoConfig.KEY_BOOLEAN_MOTIONTRACKING, true);
@@ -126,30 +133,31 @@ public class CordovaTango extends CordovaPlugin {
             @SuppressLint("DefaultLocale")
             @Override
             public void onPoseAvailable(TangoPoseData pose) {
-                if (mIsProcessing) {
-                    Log.i(TAG, "Processing UI");
-                    return;
+
+                if(lastKnownPose == null || (lastKnownPose.translation[0] != pose.translation[0]
+                        && lastKnownPose.translation[1] != pose.translation[1]
+                        && lastKnownPose.translation[2] != pose.translation[2])) {
+                    // Format Translation and Rotation data
+                    final String translationMsg = String.format(sTranslationFormat,
+                            pose.translation[0], pose.translation[1],
+                            pose.translation[2]);
+                    final String rotationMsg = String.format(sRotationFormat,
+                            pose.rotation[0], pose.rotation[1], pose.rotation[2],
+                            pose.rotation[3]);
+
+                    // Output to LogCat
+                    String logMsg = translationMsg + " | " + rotationMsg;
+                    //Log.i(TAG, logMsg);
+
+                    // Build some JSON to send back out
+                    JSONObject data = createJsonObject(pose);
+
+                    //Send the results back
+                    PluginResult result = new PluginResult(PluginResult.Status.OK, data);
+                    result.setKeepCallback(true);
+                    callbackContext.sendPluginResult(result);
+                    lastKnownPose = pose;
                 }
-                mIsProcessing = true;
-
-                // Format Translation and Rotation data
-                final String translationMsg = String.format(sTranslationFormat,
-                        pose.translation[0], pose.translation[1],
-                        pose.translation[2]);
-                final String rotationMsg = String.format(sRotationFormat,
-                        pose.rotation[0], pose.rotation[1], pose.rotation[2],
-                        pose.rotation[3]);
-
-                // Output to LogCat
-                String logMsg = translationMsg + " | " + rotationMsg;
-                Log.i(TAG, logMsg);
-
-                // Build some JSON to send back out
-                JSONObject data = createJsonObject(pose);
-
-                //Send the results back
-                PluginResult result = new PluginResult(PluginResult.Status.OK, data);
-                callbackContext.sendPluginResult(result);
             }
 
             @Override

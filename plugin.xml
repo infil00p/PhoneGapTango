@@ -21,7 +21,6 @@
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
            id="cordova-plugin-tango"
       version="0.0.1-dev">
-	
     <name>Project Tango Motion</name>
     <description>PhoneGap Project Tango PoC</description>
     <license>Apache 2.0</license>
@@ -35,7 +34,6 @@
 
     <!-- android -->
     <platform name="android">
-	    
         <config-file target="res/xml/config.xml" parent="/*">
             <feature name="Tango">
                 <param name="android-package" value="com.phonegap.ptc.demo.CordovaTango"/>
@@ -43,6 +41,8 @@
         </config-file>
 
         <source-file src="src/android/CordovaTango.java" target-dir="src/com/phonegap/ptc/demo" />
-    
+
+        <framework src="com.google.tango:sdk-base:1.53" />
+        <framework src="com.google.tango:support-base:1.53" />
     </platform>
 </plugin>
