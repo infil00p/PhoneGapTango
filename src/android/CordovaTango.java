@@ -5,6 +5,7 @@ import com.google.atap.tangoservice.TangoConfig;
 import com.google.atap.tangoservice.TangoCoordinateFramePair;
 import com.google.atap.tangoservice.TangoErrorException;
 import com.google.atap.tangoservice.TangoEvent;
+import com.google.atap.tangoservice.TangoInvalidException;
 import com.google.atap.tangoservice.TangoOutOfDateException;
 import com.google.atap.tangoservice.TangoPoseData;
 import com.google.atap.tangoservice.TangoXyzIjData;
@@ -51,17 +52,7 @@ public class CordovaTango extends CordovaPlugin {
         mCordova = cordova;
         Context ctx = mCordova.getActivity().getApplicationContext();
 
-        tangoRunnable = new Runnable() {
-            @Override
-            public void run() {
 
-            }
-        };
-
-        mTango = new Tango(ctx, tangoRunnable);
-
-        mConfig = mTango.getConfig(TangoConfig.CONFIG_TYPE_CURRENT);
-        mConfig.putBoolean(TangoConfig.KEY_BOOLEAN_MOTIONTRACKING, true);
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
@@ -100,10 +91,31 @@ public class CordovaTango extends CordovaPlugin {
         this.callbackContext = ctx;
         if (action.equals("start"))
         {
-            mCordova.startActivityForResult(
-                    (CordovaPlugin) this,
-                    Tango.getRequestPermissionIntent(Tango.PERMISSIONTYPE_MOTION_TRACKING),
-                    Tango.TANGO_INTENT_ACTIVITYCODE);
+            if(mTango == null )
+            {
+                final CordovaTango that = this;
+                mTango = new Tango(this.cordova.getActivity(), new Runnable() {
+                    @Override
+                    public void run() {
+                        synchronized (that.cordova.getActivity()) {
+                            try {
+                                mConfig = setupTangoConfig(mTango);
+                                mTango.connect(mConfig);
+                                setTangoListeners();
+                            } catch (TangoOutOfDateException e) {
+                                PluginResult result = new PluginResult(PluginResult.Status.ERROR);
+                                callbackContext.sendPluginResult(result);
+                            } catch (TangoErrorException e) {
+                                PluginResult result = new PluginResult(PluginResult.Status.ERROR);
+                                callbackContext.sendPluginResult(result);
+                            } catch (TangoInvalidException e) {
+                                PluginResult result = new PluginResult(PluginResult.Status.ERROR);
+                                callbackContext.sendPluginResult(result);
+                            }
+                        }
+                    }
+                });
+            }
         }
         else if (action.equals("stop"))
         {
@@ -119,6 +131,19 @@ public class CordovaTango extends CordovaPlugin {
         return true;
     }
 
+    /**
+     * Sets up the tango configuration object. Make sure mTango object is initialized before
+     * making this call.
+     */
+    private TangoConfig setupTangoConfig(Tango tango) {
+        // Create a new Tango Configuration and enable the HelloMotionTrackingActivity API.
+        TangoConfig config = tango.getConfig(TangoConfig.CONFIG_TYPE_DEFAULT);
+        config.putBoolean(TangoConfig.KEY_BOOLEAN_MOTIONTRACKING, true);
+
+        // Tango Service should automatically attempt to recover when it enters an invalid state.
+        config.putBoolean(TangoConfig.KEY_BOOLEAN_AUTORECOVERY, true);
+        return config;
+    }
 
     private void setTangoListeners() {
         // Select coordinate frame pairs
@@ -183,15 +208,17 @@ public class CordovaTango extends CordovaPlugin {
         JSONObject m = new JSONObject();
         JSONObject rotation = new JSONObject();
         JSONObject translation = new JSONObject();
+
         try
         {
+            // X and Z are inverted
             translation.put("x", pose.translation[0]);
-            translation.put("y", pose.translation[1]);
-            translation.put("z", pose.translation[2]);
+            translation.put("y", pose.translation[2]);
+            translation.put("z", pose.translation[1]);
             m.put("translation", translation);
             rotation.put("x", pose.rotation[0]);
             rotation.put("y", pose.rotation[1]);
-            rotation.put("z", pose.rotation[2]);
+            rotation.put("z", pose.rotation[2   ]);
             rotation.put("s", pose.rotation[3]);
             m.put("rotation", rotation);
         }
@@ -202,27 +229,21 @@ public class CordovaTango extends CordovaPlugin {
         return m;
     }
 
-
     public void onPause(boolean background) {
         // When the app is pushed to the background, unlock the Tango
-        // configuration and disconnect
-        // from the service so that other apps will behave properly.
-        try {
-            mTango.disconnect();
-            mIsTangoServiceConnected = false;
-        } catch (TangoErrorException e) {
-            //TODO: Figure out how to handle this state
+        // configuration and disconnect from the service so that other apps will behave properly.
+        synchronized (this.cordova.getActivity()) {
+            try {
+                mTango.disconnect();
+            } catch (TangoErrorException e) {
+                //Do something here
+            }
         }
     }
 
     public void onResume(boolean background)
     {
-        if (!mIsTangoServiceConnected) {
-            cordova.startActivityForResult(
-                    this,
-                    Tango.getRequestPermissionIntent(Tango.PERMISSIONTYPE_MOTION_TRACKING),
-                    Tango.TANGO_INTENT_ACTIVITYCODE);
-        }
+
     }
 
 }
